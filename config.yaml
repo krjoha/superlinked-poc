@@ -1,0 +1,18 @@
+framework:
+  app_module_path: superlinked_app.api
+  disable_recency_space: false
+
+api:
+  api_keys:
+    - "your_api_key_here"
+  allowed_origins:
+    - "*"
+
+model:
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+
+resource:
+  max_workers: 4
+
+image:
+  storage_path: "./images"

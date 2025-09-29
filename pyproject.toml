@@ -1,0 +1,22 @@
+[project]
+name = "superlinked-poc"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "altair>=5.5.0",
+    "dynaconf>=3.2.11",
+    "superlinked-server>=1.56.4",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.6",
+    "black>=25.9.0",
+    "isort>=6.0.1",
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.2",
+    "ruff>=0.13.2",
+]
