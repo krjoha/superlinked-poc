@@ -1,8 +1,10 @@
 from superlinked import framework as sl
 
+
 class YourSchema(sl.Schema):
-    id: sl.IdField
+    item_id: sl.IdField
     attribute: sl.String
+
 
 your_schema = YourSchema()
 
