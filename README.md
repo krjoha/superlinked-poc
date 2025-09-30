@@ -23,5 +23,5 @@ The plan is to utilize cloud hosting on GCP, and details can be found in `docs/d
 * FastAPI
 * Google Cloud Platform
 
-We try to use free tiers and work within the EU region mainly.
+We try to use free tiers and work within the EU region mainly. We do not maintain or develop superlinked, only the implementation code that is specific for each customer.
 
