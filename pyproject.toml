@@ -7,7 +7,11 @@ requires-python = ">=3.12"
 dependencies = [
     "altair>=5.5.0",
     "dynaconf>=3.2.11",
+    "pandas>=2.3.2",
+    "pyarrow>=21.0.0",
+    "requests>=2.32.5",
     "superlinked-server>=1.56.4",
+    "tqdm>=4.67.1",
 ]
 
 [dependency-groups]

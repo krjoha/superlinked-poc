@@ -230,3 +230,4 @@ service-account-*.json
 *-service-account.json
 
 in_memory_vdb/
+amazon_objects/
