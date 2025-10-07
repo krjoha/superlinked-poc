@@ -1,7 +1,102 @@
-# Ultra-Budget GCP Deployment Instructions for Superlinked App
+# Development Plan & Progress Tracking
+
+**Last Updated:** 2025-10-07
+**Project:** E-commerce Search & Recommendations API (search_rec_api)
+**Dataset:** Amazon Berkeley Objects (ABO)
+
+---
+
+## 📊 Current Status: Phase 0 - Local Development (95% Complete)
+
+### ✅ Completed Tasks
+
+#### Data Acquisition & Processing
+- ✅ Downloaded Amazon Berkeley Objects dataset
+  - `abo-listings.tar` (84MB) - Product metadata (147,702 products)
+  - `abo-images-small.tar` (3.1GB) - 256px product images
+- ✅ Created preprocessing pipeline (`scripts/preprocess_amazon_data.py`)
+  - Extracts English text from multilingual fields
+  - Deduplicates items (removed 2,087 duplicates)
+  - Outputs Parquet format with proper schema (17.38MB)
+  - Generates 15 row groups @ ~10k rows each for efficient loading
+- ✅ Generated datasets:
+  - **Test:** 3,969 SHOES products (English-speaking countries only)
+  - **Production:** 145,615 unique products (all categories)
+
+#### Schema & Application Design
+- ✅ Designed `ProductSchema` with 10 fields (item_id, item_name, brand, product_type, color, description, keywords, image_id, country, domain)
+- ✅ Configured 4 similarity spaces with weighted multi-field search
+- ✅ Environment variable switching (`USE_TEST_DATA`) between test/prod datasets
+- ✅ Verified embedding model reuse (1x memory usage, not 3x)
+
+### ⏳ Next Immediate Steps
+
+1. **Ingest test dataset & validate search** (Phase 0 completion)
+   ```bash
+   USE_TEST_DATA=1 python -m superlinked.server
+   curl -X POST http://localhost:8080/data-loader/amazon_products_loader/run
+   ```
+
+2. **Run test queries** to validate search quality
+   ```bash
+   curl -X POST http://localhost:8080/api/v1/search/product_search \
+     -H "Content-Type: application/json" \
+     -d '{"query_text": "running shoes", "product_type": "SHOES", "limit": 10}'
+   ```
+
+3. **Decision Point:** Evaluate if `all-MiniLM-L6-v2` model is sufficient or needs upgrade
+
+---
+
+## 🗺️ Deployment Roadmap
+
+### Phase 0: Local Development & Validation (Current - 95%)
+**Goal:** Confirm basic search works with test dataset
+
+- [x] Download and preprocess Amazon Berkeley Objects data
+- [x] Configure Superlinked schema and spaces
+- [x] Set up test/prod dataset switching
+- [ ] Ingest test data (3,969 products)
+- [ ] Validate search quality with 10+ queries
+- [ ] Benchmark query latency and relevance
+
+**Success Criteria:**
+- Search returns relevant results
+- Query latency < 500ms for test dataset
+- Ready to proceed to production data
+
+---
+
+### Phase 1: Production Readiness (Not Started)
+**Goal:** Full dataset loaded, API secured, performance validated
+
+**Tasks:**
+- [ ] Load full 145k product dataset
+- [ ] Configure API key authentication in `config.yaml`
+- [ ] Set up CORS for allowed origins
+- [ ] Add filtering by brand, color, country
+- [ ] Map product images to API responses
+- [ ] Benchmark with production data (target: p95 < 500ms)
+- [ ] Create test suite
+
+**Success Criteria:**
+- Full dataset searchable
+- API properly authenticated
+- Performance targets met across all product types
+
+---
+
+### Phase 2: GCP Deployment (Detailed Instructions Below)
+**Goal:** Deploy to GCP with ultra-budget strategy (~$12-41/month)
+
+This phase follows the detailed deployment instructions in the sections below.
+
+---
+
+## GCP Deployment Instructions
 
 ## Overview
-This guide provides a deployment strategy using GCP services with free tier monitoring and on-demand dashboards. Particualarily BigQuery has a generous free tier offering.
+This guide provides a deployment strategy using GCP services with free tier monitoring and on-demand dashboards. Particularly BigQuery has a generous free tier offering.
 
 ## Cost Optimization Philosophy
 - **Consolidate services**: Single PostgreSQL for vectors + billing
