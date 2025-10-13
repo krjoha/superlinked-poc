@@ -4,6 +4,7 @@ Analyze Amazon product data to understand product categories and price ranges.
 Helps determine what to search for when testing the API.
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 import pandas as pd
@@ -200,8 +201,8 @@ def main():
     parser.add_argument(
         "--input",
         type=str,
-        default="data/processed_products_1k.parquet",
-        help="Input Parquet file path (default: data/processed_products_1k.parquet)",
+        default=None,
+        help="Input Parquet file path (default: auto-select based on USE_TEST_DATA)",
     )
     parser.add_argument(
         "--sample",
@@ -212,7 +213,15 @@ def main():
 
     args = parser.parse_args()
 
-    input_file = Path(args.input)
+    # Auto-select file based on USE_TEST_DATA env variable
+    if args.input:
+        input_file = Path(args.input)
+    else:
+        use_test_data = os.environ.get('USE_TEST_DATA', '0') == '1'
+        if use_test_data:
+            input_file = Path("data/processed_amazon_grocery_1k.parquet")
+        else:
+            input_file = Path("data/processed_amazon_grocery.parquet")
 
     if not input_file.exists():
         print(f"Error: Input file not found: {input_file}")

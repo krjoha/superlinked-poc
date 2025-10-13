@@ -117,26 +117,51 @@ The default setup uses `InMemoryVectorDatabase()` (see `superlinked_app/api.py`)
 - Use Redis via configuration
 - Or use PostgreSQL with pgvector extension (recommended for cost optimization)
 
-### Data Source
+### Data Sources
 
-The application uses Amazon product data with two loading methods:
+The application currently supports multiple datasets with separate schemas and indices:
+
+#### Amazon Grocery Dataset (Current)
+
+Uses Amazon ML Challenge 2025 grocery/food product data with two loading methods:
 
 1. **DataLoaderSource** (bulk ingestion from Parquet):
-   - Test mode: `USE_TEST_DATA=1` loads `data/processed_products_1k.parquet`
-   - Production mode: loads `data/processed_products.parquet`
-   - Note: DataLoaderSource must be triggered manually, it does not auto-load on startup
+   - Test mode: `USE_TEST_DATA=1` loads `data/processed_amazon_grocery_1k.parquet`
+   - Production mode: loads `data/processed_amazon_grocery.parquet`
+   - Data loader name: `amazon_grocery_loader`
+   - Note: DataLoaderSource must be triggered manually via API, it does not auto-load on startup
 
 2. **RestSource** (manual ingestion via API):
    - POST to `/api/v1/ingest/product_schema` with JSON payload
    - Fields: item_id, description, price
 
-### Data Preprocessing
-
-Raw data is preprocessed using `scripts/preprocess_amazon_data.py`:
-- Input: `amazon_data/student_resource/dataset/train.csv` (75k products)
+**Data Preprocessing:**
+Raw data is preprocessed using `scripts/preprocess_amazon_grocery.py`:
+- Input: `amazon_grocery_data/student_resource/dataset/train.csv` (75k products)
 - Download dataset: https://www.kaggle.com/datasets/raghavdharwal/amazon-ml-challenge-2025
-- Output: `data/processed_products.parquet` (batched with row groups)
-- Images: Downloaded to `data/images/` (file paths stored in Parquet)
+- Output: `data/processed_amazon_grocery.parquet` (batched with row groups)
+- Images: Downloaded to `data/images_amazon_grocery/` (file paths stored in Parquet)
+
+#### H&M Fashion Clothing Dataset
+
+Uses H&M fashion caption dataset from HuggingFace with multi-modal image+text search:
+
+1. **DataLoaderSource** (bulk ingestion from Parquet):
+   - Test mode: `USE_TEST_DATA=1` loads `data/processed_hm_clothing_1k.parquet`
+   - Production mode: loads `data/processed_hm_clothing.parquet`
+   - Data loader name: `hm_clothing_loader`
+   - Note: DataLoaderSource must be triggered manually via API, it does not auto-load on startup
+
+2. **RestSource** (manual ingestion via API):
+   - POST to `/api/v1/ingest/hm_clothing_schema` with JSON payload
+   - Fields: item_id, description, image (binary blob)
+
+**Data Preprocessing:**
+Raw data is preprocessed using `scripts/preprocess_hm_clothing.py`:
+- Input: `tomytjandra/h-and-m-fashion-caption` HuggingFace dataset (20,491 items)
+- Output: `data/processed_hm_clothing.parquet` (batched with row groups)
+- Images: Converted from PIL Images to JPEG bytes (~120KB per image)
+- First download: ~6GB (cached locally after first run)
 
 ### Data Flow
 
@@ -224,9 +249,11 @@ When modifying the application:
 
 **Do not modify the Superlinked server code itself** - it's a third-party package maintained by Superlinked.
 
-## Current Dataset Schema
+## Current Schemas and Datasets
 
-The application currently uses Amazon product data with the following schema:
+### Amazon Grocery Schema (ProductSchema)
+
+Currently active schema for grocery/food products:
 
 **ProductSchema fields:**
 - `item_id` (IdField): Unique product identifier
@@ -236,6 +263,7 @@ The application currently uses Amazon product data with the following schema:
 **API Endpoints:**
 - Ingest: `POST /api/v1/ingest/product_schema`
 - Search: `POST /api/v1/search/product_search`
+- Data Loader: `POST /data-loader/amazon_grocery_loader/run`
 
 **Query parameters:**
 - `query_text`: Search query for description matching
@@ -243,3 +271,67 @@ The application currently uses Amazon product data with the following schema:
 - `description_weight`: Weight for text similarity (default: 1.0)
 - `price_weight`: Weight for price similarity (default: 0.3)
 - `limit`: Maximum results to return
+
+**Data files:**
+- Full: `data/processed_amazon_grocery.parquet` (75k products)
+- Test: `data/processed_amazon_grocery_1k.parquet` (1k products)
+- Images: `data/images_amazon_grocery/` and `data/images_amazon_grocery_1k/`
+
+### H&M Fashion Clothing Schema (HMClothingSchema)
+
+Schema for fashion/clothing items with multi-modal image+text search:
+
+**HMClothingSchema fields:**
+- `item_id` (IdField): Unique product identifier
+- `description` (String): Text description of clothing item
+- `image` (Blob): Binary image data (JPEG format, ~120KB per image)
+
+**API Endpoints:**
+- Ingest: `POST /api/v1/ingest/hm_clothing_schema`
+- Search: `POST /api/v1/search/hm_clothing_search`
+- Data Loader: `POST /data-loader/hm_clothing_loader/run`
+
+**Query parameters:**
+- `text_search`: Text query for description matching (text-in-text)
+- `text_in_image_search`: Text query in image embeddings (CLIP text-to-image)
+- `image_search`: Binary image data for image-in-image similarity
+- `description_weight`: Weight for text similarity
+- `image_weight`: Weight for image similarity
+- `limit`: Maximum results to return
+
+**Data files:**
+- Full: `data/processed_hm_clothing.parquet` (20,491 items, ~2.5GB)
+- Test: `data/processed_hm_clothing_1k.parquet` (100 items, ~26MB)
+
+**Key differences from Grocery Schema:**
+- **Multi-modal**: Uses CLIP Vision Transformer (`laion/CLIP-ViT-H-14-laion2B-s32B-b79K`)
+- **Image search**: Supports text-to-image and image-to-image similarity
+- **No price/ratings**: Pure visual + textual search
+- **Larger model**: Uses `Alibaba-NLP/gte-large-en-v1.5` for text (same power as ESCI example)
+- **Binary blobs**: Images stored as JPEG bytes in Parquet
+
+**Image Search Scripts:**
+
+Two approaches for image-based search ("find clothing matching this watch"):
+
+1. **Helper Script (InMemoryExecutor)** - Development/Testing:
+   ```bash
+   python scripts/search_hm_clothing_with_image.py --image /tmp/watch.jpg --text "shirt" --limit 5
+   ```
+   - Direct PIL Image support (no encoding needed)
+   - Fast iteration for development
+   - Not suitable for production deployment
+
+2. **REST API Script** - Production:
+   ```bash
+   # Ingest items with base64-encoded images
+   python scripts/rest_api_image_search_example.py ingest \
+     --parquet data/processed_hm_clothing_1k.parquet --count 10
+
+   # Search with reference image
+   python scripts/rest_api_image_search_example.py search \
+     --image /tmp/watch.jpg --text "shirt" --limit 5
+   ```
+   - Uses base64 encoding for binary image data in JSON
+   - Production-ready REST API approach
+   - Base64 increases payload by ~33% (120KB → 160KB)
