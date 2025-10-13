@@ -81,17 +81,19 @@ pre-commit run --all-files
 The application follows Superlinked's modular architecture:
 
 1. **`superlinked_app/index.py`**: Defines the schema, spaces, and indices
-   - `YourSchema`: Schema definition with fields (item_id, attribute)
-   - `text_space`: TextSimilaritySpace using sentence-transformers model
-   - `index`: Index combining the text space
+   - `ProductSchema`: Schema definition with fields (item_id, description, price)
+   - `description_space`: TextSimilaritySpace using sentence-transformers/all-MiniLM-L6-v2 model
+   - `price_space`: NumberSpace for price-based similarity (Mode.SIMILAR)
+   - `index`: Index combining description and price spaces
 
 2. **`superlinked_app/query.py`**: Defines query logic
    - `query`: Query definition for similarity search
-   - Uses parameters for dynamic query text
+   - Uses parameters: query_text, query_price, description_weight, price_weight, limit
 
 3. **`superlinked_app/api.py`**: Application entry point
-   - `your_source`: REST data source for ingestion
-   - `your_query`: REST query endpoint
+   - `product_source`: REST data source for manual ingestion
+   - `data_loader_source`: DataLoaderSource for bulk ingestion from Parquet
+   - `product_query`: REST query endpoint for product search
    - `executor`: Orchestrates sources, indices, and queries
    - Registers executor with SuperlinkedRegistry
 
@@ -111,9 +113,30 @@ Configuration is managed via `config.yaml` (see `docs/superlinked_config.md` for
 
 ### Vector Database
 
-The default setup uses `InMemoryVectorDatabase()` (see `superlinked_app/api.py:13`). For production:
+The default setup uses `InMemoryVectorDatabase()` (see `superlinked_app/api.py`). For production:
 - Use Redis via configuration
 - Or use PostgreSQL with pgvector extension (recommended for cost optimization)
+
+### Data Source
+
+The application uses Amazon product data with two loading methods:
+
+1. **DataLoaderSource** (bulk ingestion from Parquet):
+   - Test mode: `USE_TEST_DATA=1` loads `data/processed_products_1k.parquet`
+   - Production mode: loads `data/processed_products.parquet`
+   - Note: DataLoaderSource must be triggered manually, it does not auto-load on startup
+
+2. **RestSource** (manual ingestion via API):
+   - POST to `/api/v1/ingest/product_schema` with JSON payload
+   - Fields: item_id, description, price
+
+### Data Preprocessing
+
+Raw data is preprocessed using `scripts/preprocess_amazon_data.py`:
+- Input: `amazon_data/student_resource/dataset/train.csv` (75k products)
+- Download dataset: https://www.kaggle.com/datasets/raghavdharwal/amazon-ml-challenge-2025
+- Output: `data/processed_products.parquet` (batched with row groups)
+- Images: Downloaded to `data/images/` (file paths stored in Parquet)
 
 ### Data Flow
 
@@ -124,10 +147,24 @@ The default setup uses `InMemoryVectorDatabase()` (see `superlinked_app/api.py:1
 ## Important Implementation Notes
 
 ### Embedding Models
-**Embedding models are specified in application code, not in config.yaml.** See `superlinked_app/index.py:11-12`:
+**Embedding models are specified in application code, not in config.yaml.** See `superlinked_app/index.py:13-18`:
 ```python
 model_name = "sentence-transformers/all-MiniLM-L6-v2"
-text_space = sl.TextSimilaritySpace(text=your_schema.attribute, model=model_name)
+description_space = sl.TextSimilaritySpace(
+    text=product_schema.description,
+    model=model_name
+)
+```
+
+### Number Space for Price
+The price field uses NumberSpace with `Mode.SIMILAR` to find products at similar price points:
+```python
+price_space = sl.NumberSpace(
+    number=product_schema.price,
+    min_value=0.0,
+    max_value=10000.0,
+    mode=sl.Mode.SIMILAR  # Must use enum, not string
+)
 ```
 
 ### API Authentication
@@ -179,10 +216,30 @@ See `docs/development_plan.md` for complete GCP deployment guide. Key points:
 
 When modifying the application:
 
-1. **Schema changes**: Modify `superlinked_app/index.py` → Update `YourSchema`
+1. **Schema changes**: Modify `superlinked_app/index.py` → Update `ProductSchema`
 2. **New spaces**: Add spaces in `index.py` → Combine in Index
 3. **Query changes**: Modify `superlinked_app/query.py` → Add parameters, filters
 4. **New endpoints**: Add sources/queries in `api.py` → Register with executor
 5. **Configuration**: Update `config.yaml` → Restart server
 
 **Do not modify the Superlinked server code itself** - it's a third-party package maintained by Superlinked.
+
+## Current Dataset Schema
+
+The application currently uses Amazon product data with the following schema:
+
+**ProductSchema fields:**
+- `item_id` (IdField): Unique product identifier
+- `description` (String): Concatenated product information (name, bullet points, value, unit)
+- `price` (Float): Product price in dollars
+
+**API Endpoints:**
+- Ingest: `POST /api/v1/ingest/product_schema`
+- Search: `POST /api/v1/search/product_search`
+
+**Query parameters:**
+- `query_text`: Search query for description matching
+- `query_price`: Target price for similarity
+- `description_weight`: Weight for text similarity (default: 1.0)
+- `price_weight`: Weight for price similarity (default: 0.3)
+- `limit`: Maximum results to return
