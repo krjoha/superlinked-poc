@@ -1,0 +1,47 @@
+PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2025 PGI AB. All rights reserved.
+
+This software and associated documentation files (the "Software") are the
+proprietary and confidential property of PGI AB.
+
+RESTRICTIONS:
+
+1. The Software is licensed, not sold. PGI AB retains all right, title, and
+   interest in and to the Software, including all intellectual property rights.
+
+2. You may not use, copy, modify, merge, publish, distribute, sublicense,
+   and/or sell copies of the Software without express written permission from
+   PGI AB.
+
+3. You may not reverse engineer, decompile, or disassemble the Software,
+   except to the extent that such activity is expressly permitted by applicable
+   law notwithstanding this limitation.
+
+4. You may not remove or alter any proprietary notices, labels, or marks on
+   the Software.
+
+DISCLAIMER:
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL PGI AB
+BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+THIRD-PARTY SOFTWARE:
+
+This Software incorporates or depends upon certain third-party open-source
+software components, each of which is subject to its own license terms. The
+use of such third-party components is governed by their respective licenses,
+which can be found in the dependency declarations (pyproject.toml, uv.lock).
+
+CONTACT:
+
+For licensing inquiries, please contact PGI AB.
+
+---
+
+PGI AB
+Sweden

@@ -3,42 +3,28 @@ from superlinked import framework as sl
 
 class ProductSchema(sl.Schema):
     item_id: sl.IdField
-    item_name: sl.String
-    brand: sl.String | None
-    product_type: sl.String | None
-    color: sl.String | None
-    product_description: sl.String | None
-    item_keywords: sl.String | None
-    main_image_id: sl.String | None
-    country: sl.String | None
-    domain_name: sl.String | None
+    description: sl.String
+    price: sl.Float
 
 
 product_schema = ProductSchema()
 
-# Text similarity spaces for different product attributes
+# Text similarity space for product descriptions
 model_name = "sentence-transformers/all-MiniLM-L6-v2"
 
-name_space = sl.TextSimilaritySpace(
-    text=product_schema.item_name,
-    model=model_name
-)
-
 description_space = sl.TextSimilaritySpace(
-    text=product_schema.product_description,
+    text=product_schema.description,
     model=model_name
 )
 
-keywords_space = sl.TextSimilaritySpace(
-    text=product_schema.item_keywords,
-    model=model_name
+# Number space for price-based filtering and similarity
+# Using Mode.SIMILAR to find products with similar prices
+# Range covers typical Amazon product prices ($0-$10,000)
+price_space = sl.NumberSpace(
+    number=product_schema.price,
+    min_value=0.0,
+    max_value=10000.0,
+    mode=sl.Mode.SIMILAR
 )
 
-# Categorical space for product type filtering
-category_space = sl.CategoricalSimilaritySpace(
-    category_input=product_schema.product_type,
-    categories=["SHOES", "DRINKING_CUP", "CLOTHING", "ELECTRONICS"],
-    uncategorized_as_category=True
-)
-
-index = sl.Index([name_space, description_space, keywords_space, category_space])
+index = sl.Index([description_space, price_space])

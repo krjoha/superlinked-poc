@@ -231,3 +231,5 @@ service-account-*.json
 
 in_memory_vdb/
 amazon_objects/
+amazon_data/
+data/

@@ -8,12 +8,12 @@ from superlinked_app.query import query
 product_source: sl.RestSource = sl.RestSource(product_schema)
 
 # DataLoader source for bulk ingestion from Parquet
-# Set USE_TEST_DATA=1 for 1k rows, otherwise loads full 145k dataset
+# Set USE_TEST_DATA=1 for 1k rows, otherwise loads full 75k dataset
 import os
 data_file = (
-    "amazon_objects/processed_products_test.parquet"
+    "data/processed_products_1k.parquet"
     if os.getenv("USE_TEST_DATA")
-    else "amazon_objects/processed_products.parquet"
+    else "data/processed_products.parquet"
 )
 data_loader_config = sl.DataLoaderConfig(
     path=data_file,
