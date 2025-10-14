@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Preprocess Amazon product data for Superlinked ingestion.
+Preprocess Amazon grocery product data for Superlinked ingestion.
 Converts CSV with product descriptions, prices, and images to Parquet format.
 Downloads images to local folder and stores file paths in the Parquet file.
+Source: Amazon ML Challenge 2025 dataset (Kaggle)
 """
 import argparse
 import os
@@ -122,7 +123,7 @@ def main():
     """
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="Preprocess Amazon product data for Superlinked ingestion"
+        description="Preprocess Amazon grocery product data for Superlinked ingestion"
     )
     parser.add_argument(
         "--nrows",
@@ -139,25 +140,25 @@ def main():
     parser.add_argument(
         "--input",
         type=str,
-        default="amazon_data/student_resource/dataset/train.csv",
+        default="amazon_grocery_data/student_resource/dataset/train.csv",
         help="Input CSV file path",
     )
     parser.add_argument(
         "--output",
         type=str,
-        default="data/processed_products.parquet",
+        default="data/processed_amazon_grocery.parquet",
         help="Output Parquet file path",
     )
     parser.add_argument(
         "--images-dir",
         type=str,
-        default="data/images",
+        default="data/images_amazon_grocery",
         help="Directory to save downloaded images",
     )
 
     args = parser.parse_args()
 
-    # Paths (run from project root: python scripts/preprocess_amazon_data.py)
+    # Paths (run from project root: python scripts/preprocess_amazon_grocery.py)
     input_csv = Path(args.input)
     output_parquet = Path(args.output)
     images_folder = Path(args.images_dir)
