@@ -10,6 +10,9 @@ from superlinked_app.query import query
 from superlinked_app.hm_index import hm_index, hm_clothing_schema
 from superlinked_app.hm_query import hm_query
 
+# Import vector database factory
+from superlinked_app.vector_db import get_vector_database
+
 # ============================================================================
 # GROCERY PRODUCT SOURCES AND QUERIES (Amazon ML Challenge Dataset)
 # ============================================================================
@@ -63,12 +66,12 @@ hm_query_endpoint = sl.RestQuery(sl.RestDescriptor("hm_clothing_search"), hm_que
 # ============================================================================
 
 # Single executor managing both grocery and H&M clothing datasets
-# Uses shared InMemoryVectorDatabase for both indices
+# Vector database is configured via environment variables (see vector_db.py)
 executor = sl.RestExecutor(
     sources=[product_source, grocery_data_loader, hm_clothing_source, hm_data_loader],
     indices=[index, hm_index],
     queries=[product_query, hm_query_endpoint],
-    vector_database=sl.InMemoryVectorDatabase(),
+    vector_database=get_vector_database(),
 )
 
 sl.SuperlinkedRegistry.register(executor)

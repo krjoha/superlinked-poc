@@ -30,15 +30,27 @@ source .venv/bin/activate
 ```
 
 ### Running the Server
-```bash
-# Start the Superlinked server with config.yaml
-python -m superlinked.server
 
-# The server will:
-# - Load configuration from config.yaml
-# - Load app code from superlinked_app/ (specified in config.yaml's app_module_path)
-# - Start on port 8080 (default)
+**With InMemory vector database (default)**:
+```bash
+python -m superlinked.server
 ```
+
+**With Redis vector database**:
+```bash
+# Start Redis Stack first
+./scripts/redis_manager.sh start
+
+# Set environment and start server
+source .env
+VECTOR_DB_TYPE=redis python -m superlinked.server
+```
+
+The server will:
+- Load configuration from config.yaml
+- Load app code from superlinked_app/ (specified in config.yaml's app_module_path)
+- Initialize vector database based on VECTOR_DB_TYPE environment variable
+- Start on port 8080 (default)
 
 ### Testing
 ```bash
@@ -113,9 +125,30 @@ Configuration is managed via `config.yaml` (see `docs/superlinked_config.md` for
 
 ### Vector Database
 
-The default setup uses `InMemoryVectorDatabase()` (see `superlinked_app/api.py`). For production:
-- Use Redis via configuration
-- Or use PostgreSQL with pgvector extension (recommended for cost optimization)
+The application supports multiple vector database backends (configured via environment variables):
+
+**InMemory (Default for development)**:
+- Uses `InMemoryVectorDatabase()` (see `superlinked_app/api.py`)
+- Data persists to `in_memory_vdb/` folder
+- Fast for development and testing
+- Set `VECTOR_DB_TYPE=inmemory`
+
+**Redis Stack (Recommended for production)**:
+- Uses `RedisVectorDatabase()` with RediSearch
+- High performance (100+ QPS, 30ms p95 latency)
+- Persistent storage with RDB + AOF
+- Includes RedisInsight UI for monitoring (http://localhost:8001)
+- Set `VECTOR_DB_TYPE=redis` and configure `REDIS_HOST`, `REDIS_PORT`, etc.
+- See `docs/redis_setup.md` for complete setup guide
+- Manage with `./scripts/redis_manager.sh` (start, stop, backup, restore)
+
+**PostgreSQL with pgvector (Future option)**:
+- Ultra-low cost (~$12/month for Cloud SQL db-f1-micro)
+- Good for budget-constrained deployments
+- Lower performance than Redis
+- Set `VECTOR_DB_TYPE=postgres` (when implemented)
+
+**Configuration**: Vector database is configured via `.env` file and `superlinked_app/vector_db.py` factory function.
 
 ### Data Sources
 
@@ -235,6 +268,7 @@ See `docs/development_plan.md` for complete GCP deployment guide. Key points:
 
 - **`docs/development_plan.md`**: Complete GCP deployment guide with cost optimization
 - **`docs/superlinked_config.md`**: Comprehensive config.yaml parameter reference
+- **`docs/redis_setup.md`**: Redis Stack setup, configuration, and management guide
 - **`README.md`**: Project overview and quick start
 
 ## Working with Superlinked
