@@ -192,9 +192,35 @@ Uses H&M fashion caption dataset from HuggingFace with multi-modal image+text se
 **Data Preprocessing:**
 Raw data is preprocessed using `scripts/preprocess_hm_clothing.py`:
 - Input: `tomytjandra/h-and-m-fashion-caption` HuggingFace dataset (20,491 items)
-- Output: `data/processed_hm_clothing.parquet` (batched with row groups)
-- Images: Converted from PIL Images to JPEG bytes (~120KB per image)
+- Output: `data/processed_hm_clothing.parquet` with file paths to images
+- Images: Saved to `data/images_hm_clothing/` as JPEG files (~120KB per image)
 - First download: ~6GB (cached locally after first run)
+- **Important**: Blob fields in Parquet must contain file paths, NOT base64-encoded data
+
+**Memory Considerations for Image Embeddings:**
+
+The CLIP Vision Transformer model (`laion/CLIP-ViT-H-14-laion2B-s32B-b79K`) generates large embeddings that consume significant RAM. Loading 100 images via DataLoaderSource can consume 30-40GB RAM, causing OOM kills.
+
+**Solution: Generate chunked Parquet files during preprocessing**
+
+```bash
+# Preprocess with chunking enabled (10 items per chunk)
+python scripts/preprocess_hm_clothing.py \
+  --nrows 100 \
+  --chunk-size 10
+
+# This creates: data/processed_hm_clothing_chunks/chunk_0000.parquet, chunk_0001.parquet, etc.
+
+# Without --chunk-size, creates single file: data/processed_hm_clothing.parquet
+```
+
+**Recommendations:**
+- Use `--chunk-size 5-10` for CLIP image embeddings
+- Load each chunk separately via DataLoader API (manually trigger or modify api.py)
+- Allow garbage collection between chunk loads
+- Monitor RAM usage with `htop` or similar tools
+
+**Note:** Superlinked's DataLoaderSource loads entire Parquet files into memory at once (no streaming support). For large datasets with image embeddings, chunking is essential.
 
 ### Data Flow
 

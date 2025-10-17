@@ -178,7 +178,11 @@ clean() {
     stop
 
     info "Removing Redis data..."
-    rm -rf "$REDIS_DATA_DIR"
+    # Use sudo if permission denied (Docker creates root-owned files)
+    if ! rm -rf "$REDIS_DATA_DIR" 2>/dev/null; then
+        info "Permission denied, trying with sudo..."
+        sudo rm -rf "$REDIS_DATA_DIR"
+    fi
 
     success "Redis data cleaned"
 }

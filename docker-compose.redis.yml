@@ -24,15 +24,6 @@ services:
       start_period: 10s
     networks:
       - superlinked-network
-    # Resource limits for production
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
 
 volumes:
   redis-data:

@@ -44,17 +44,21 @@ product_query = sl.RestQuery(sl.RestDescriptor("product_search"), query)
 # REST source for manual H&M clothing ingestion
 hm_clothing_source: sl.RestSource = sl.RestSource(hm_clothing_schema)
 
-# DataLoader source for bulk H&M clothing ingestion from Parquet
+# DataLoader source for bulk H&M clothing ingestion from CSV
 # Set USE_TEST_DATA=1 for 1k rows, otherwise loads full ~20k dataset
+# CSV supports chunked reading to avoid OOM with large image embeddings
 hm_data_file = (
-    "data/processed_hm_clothing_1k.parquet"
+    "data/processed_hm_clothing_1k.csv"
     if os.getenv("USE_TEST_DATA")
-    else "data/processed_hm_clothing.parquet"
+    else "data/processed_hm_clothing.csv"
 )
 hm_loader_config = sl.DataLoaderConfig(
     path=hm_data_file,
-    format=DataFormat.PARQUET,
-    name="hm_clothing_loader"
+    format=DataFormat.CSV,
+    name="hm_clothing_loader",
+    pandas_read_kwargs={
+        "chunksize": 10  # Process 10 rows at a time to manage memory
+    }
 )
 hm_data_loader = sl.DataLoaderSource(hm_clothing_schema, hm_loader_config)
 
