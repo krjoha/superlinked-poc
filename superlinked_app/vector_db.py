@@ -2,24 +2,30 @@
 Vector Database Configuration Factory
 
 This module provides a factory function to create the appropriate vector database
-based on environment variables. Supports InMemory and Redis vector databases.
+based on Dynaconf settings. Supports InMemory and Redis vector databases.
 
-Environment Variables:
-    VECTOR_DB_TYPE: Type of vector database (inmemory, redis)
-    REDIS_HOST: Redis server hostname (default: localhost)
-    REDIS_PORT: Redis server port (default: 6379)
-    REDIS_PASSWORD: Redis password (optional)
-    REDIS_USERNAME: Redis username (default: default)
-    REDIS_DB: Redis database number (default: 0)
-    REDIS_MAX_CONNECTIONS: Maximum connections in pool (default: 50)
-    REDIS_SOCKET_TIMEOUT: Socket timeout in seconds (default: 5)
+Configuration is loaded from:
+    - superlinked_app/config/settings.toml (base configuration)
+    - superlinked_app/config/.secrets.toml (local overrides, git-ignored)
+    - Environment variables: SEARCHREC__VECTOR_DB_TYPE, SEARCHREC__REDIS_HOST, etc.
+    - GCP Secret Manager (production only, via Dynaconf hook)
+
+Configuration Parameters:
+    vector_db_type: Type of vector database (inmemory, redis)
+    redis_host: Redis server hostname (default: localhost)
+    redis_port: Redis server port (default: 6379)
+    redis_password: Redis password (optional, loaded from GCP Secret Manager in production)
+    redis_username: Redis username (default: default)
+    redis_db: Redis database number (default: 0)
+    redis_max_connections: Maximum connections in pool (default: 50)
+    redis_socket_timeout: Socket timeout in seconds (default: 5)
+    redis_socket_connect_timeout: Socket connect timeout in seconds (default: 5)
 """
 
-import os
 import logging
-from typing import Union
 from superlinked import framework as sl
 from superlinked.framework.dsl.storage.vector_database import VectorDatabase
+from superlinked_app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -32,27 +38,27 @@ def get_vector_database() -> VectorDatabase:
         VectorDatabase instance (InMemory or Redis)
 
     Raises:
-        ValueError: If VECTOR_DB_TYPE is invalid
+        ValueError: If vector_db_type is invalid
         ConnectionError: If Redis connection fails
     """
-    db_type = os.getenv("VECTOR_DB_TYPE", "inmemory").lower()
+    db_type = settings.vector_db_type.lower()
 
     if db_type == "inmemory":
         logger.info("Using InMemoryVectorDatabase")
         return sl.InMemoryVectorDatabase()
 
     elif db_type == "redis":
-        # Get Redis configuration from environment
-        redis_host = os.getenv("REDIS_HOST", "localhost")
-        redis_port = int(os.getenv("REDIS_PORT", "6379"))
-        redis_password = os.getenv("REDIS_PASSWORD", "")
-        redis_username = os.getenv("REDIS_USERNAME", "default")
-        redis_db = int(os.getenv("REDIS_DB", "0"))
+        # Get Redis configuration from Dynaconf settings
+        redis_host = settings.redis_host
+        redis_port = settings.redis_port
+        redis_password = settings.redis_password
+        redis_username = settings.redis_username
+        redis_db = settings.redis_db
 
         # Redis connection pool settings
-        max_connections = int(os.getenv("REDIS_MAX_CONNECTIONS", "50"))
-        socket_timeout = int(os.getenv("REDIS_SOCKET_TIMEOUT", "5"))
-        socket_connect_timeout = int(os.getenv("REDIS_SOCKET_CONNECT_TIMEOUT", "5"))
+        max_connections = settings.redis_max_connections
+        socket_timeout = settings.redis_socket_timeout
+        socket_connect_timeout = settings.redis_socket_connect_timeout
 
         logger.info(
             f"Using RedisVectorDatabase: {redis_host}:{redis_port} "

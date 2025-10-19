@@ -1,10 +1,10 @@
 from superlinked import framework as sl
 
-from superlinked_app.index import index, description_space, price_space, product_schema
+from superlinked_app.amazon_index import index, description_space, price_space, amazon_grocery_schema
 
 query = (
     sl.Query(index)
-    .find(product_schema)
+    .find(amazon_grocery_schema)
     .similar(
         description_space.text,
         sl.Param("query_text"),

@@ -42,14 +42,14 @@ python -m superlinked.server
 ./scripts/redis_manager.sh start
 
 # Set environment and start server
-source .env
-VECTOR_DB_TYPE=redis python -m superlinked.server
+ENV_FOR_DYNACONF=development python -m superlinked.server
 ```
 
 The server will:
-- Load configuration from config.yaml
+- Load Superlinked configuration from config.yaml
+- Load application configuration from superlinked_app/config/settings.toml
 - Load app code from superlinked_app/ (specified in config.yaml's app_module_path)
-- Initialize vector database based on VECTOR_DB_TYPE environment variable
+- Initialize vector database based on settings (Dynaconf)
 - Start on port 8080 (default)
 
 ### Testing
@@ -111,17 +111,43 @@ The application follows Superlinked's modular architecture:
 
 ### Configuration System
 
-Configuration is managed via `config.yaml` (see `docs/superlinked_config.md` for complete parameter reference):
+The project uses a **dual configuration system**:
 
-**Key sections:**
+1. **Superlinked Server Configuration** (`config.yaml`)
+   - Framework-level settings
+   - See `docs/superlinked_config.md` for complete reference
+   - Key sections: `framework`, `resource`
+
+2. **Application Configuration** (Dynaconf with GCP Secret Manager)
+   - Application-level settings in `superlinked_app/config/settings.toml`
+   - Environment-based configuration (development, production)
+   - GCP Secret Manager integration for production secrets
+   - See `docs/configuration.md` for complete guide
+
+**Key Superlinked config.yaml sections:**
 - `framework.app_module_path`: Points to Python module (e.g., `superlinked_app.api`)
 - `framework.disable_recency_space`: Must be `false` if using RecencySpace
-- `api.api_keys`: List of API keys for authentication
-- `api.allowed_origins`: CORS origins
-- `model.embedding_model`: Note - this is NOT used by Superlinked; models are specified in code
 - `resource.max_workers`: Worker process count
 
-**Important:** The server is maintained by Superlinked. Configuration happens through `config.yaml`, not by modifying server code.
+**Key Application settings (Dynaconf):**
+- `vector_db_type`: inmemory or redis
+- `use_test_data`: Use test datasets (1k rows) vs full datasets
+- `redis_*`: Redis connection settings
+- `api_key`: API authentication (loaded from GCP Secret Manager in production)
+- `gcp_project_id`: GCP project for Secret Manager
+
+**Environment Switching:**
+```bash
+# Development (default)
+ENV_FOR_DYNACONF=development python -m superlinked.server
+
+# Production (loads secrets from GCP)
+ENV_FOR_DYNACONF=production python -m superlinked.server
+```
+
+**Important:**
+- Superlinked server is a third-party package - configure via `config.yaml`, don't modify server code
+- Application settings use Dynaconf - see `docs/configuration.md` for details
 
 ### Vector Database
 
@@ -143,12 +169,12 @@ The application supports multiple vector database backends (configured via envir
 - Manage with `./scripts/redis_manager.sh` (start, stop, backup, restore)
 
 **PostgreSQL with pgvector (Future option)**:
-- Ultra-low cost (~$12/month for Cloud SQL db-f1-micro)
+- Low cost (~$12/month for Cloud SQL db-f1-micro)
 - Good for budget-constrained deployments
 - Lower performance than Redis
 - Set `VECTOR_DB_TYPE=postgres` (when implemented)
 
-**Configuration**: Vector database is configured via `.env` file and `superlinked_app/vector_db.py` factory function.
+**Configuration**: Vector database is configured via Dynaconf settings (`superlinked_app/config/settings.toml`) and `superlinked_app/vector_db.py` factory function.
 
 ### Data Sources
 
@@ -159,7 +185,7 @@ The application currently supports multiple datasets with separate schemas and i
 Uses Amazon ML Challenge 2025 grocery/food product data with two loading methods:
 
 1. **DataLoaderSource** (bulk ingestion from Parquet):
-   - Test mode: `USE_TEST_DATA=1` loads `data/processed_amazon_grocery_1k.parquet`
+   - Test mode: `settings.use_test_data=true` loads `data/processed_amazon_grocery_1k.parquet`
    - Production mode: loads `data/processed_amazon_grocery.parquet`
    - Data loader name: `amazon_grocery_loader`
    - Note: DataLoaderSource must be triggered manually via API, it does not auto-load on startup
@@ -180,7 +206,7 @@ Raw data is preprocessed using `scripts/preprocess_amazon_grocery.py`:
 Uses H&M fashion caption dataset from HuggingFace with multi-modal image+text search:
 
 1. **DataLoaderSource** (bulk ingestion from Parquet):
-   - Test mode: `USE_TEST_DATA=1` loads `data/processed_hm_clothing_1k.parquet`
+   - Test mode: `settings.use_test_data=true` loads `data/processed_hm_clothing_1k.parquet`
    - Production mode: loads `data/processed_hm_clothing.parquet`
    - Data loader name: `hm_clothing_loader`
    - Note: DataLoaderSource must be triggered manually via API, it does not auto-load on startup
@@ -200,19 +226,6 @@ Raw data is preprocessed using `scripts/preprocess_hm_clothing.py`:
 **Memory Considerations for Image Embeddings:**
 
 The CLIP Vision Transformer model (`laion/CLIP-ViT-H-14-laion2B-s32B-b79K`) generates large embeddings that consume significant RAM. Loading 100 images via DataLoaderSource can consume 30-40GB RAM, causing OOM kills.
-
-**Solution: Generate chunked Parquet files during preprocessing**
-
-```bash
-# Preprocess with chunking enabled (10 items per chunk)
-python scripts/preprocess_hm_clothing.py \
-  --nrows 100 \
-  --chunk-size 10
-
-# This creates: data/processed_hm_clothing_chunks/chunk_0000.parquet, chunk_0001.parquet, etc.
-
-# Without --chunk-size, creates single file: data/processed_hm_clothing.parquet
-```
 
 **Recommendations:**
 - Use `--chunk-size 5-10` for CLIP image embeddings
@@ -263,7 +276,7 @@ No built-in CORS in Superlinked settings. Configure via `api.allowed_origins` in
 
 See `docs/development_plan.md` for complete GCP deployment guide. Key points:
 
-**Ultra-Budget Strategy (~$12-41/month):**
+**Strategy (~$50/month):**
 - Cloud SQL (db-f1-micro) for PostgreSQL with pgvector
 - Cloud Run for serverless API hosting
 - BigQuery for analytics (free tier: 10GB + 1TB queries)
@@ -285,13 +298,16 @@ See `docs/development_plan.md` for complete GCP deployment guide. Key points:
 
 ## Configuration Files
 
-- **`config.yaml`**: Main server configuration (see docs/superlinked_config.md for all parameters)
+- **`config.yaml`**: Superlinked server configuration (see docs/superlinked_config.md)
+- **`superlinked_app/config/settings.toml`**: Application configuration with Dynaconf (see docs/configuration.md)
+- **`superlinked_app/config/.secrets.toml`**: Local secret overrides (git-ignored, optional)
 - **`pyproject.toml`**: Python dependencies and project metadata
 - **`uv.lock`**: Dependency lockfile (managed by uv)
 - **`.python-version`**: Python version (3.12)
 
 ## Key Documentation
 
+- **`docs/configuration.md`**: Complete guide to Dynaconf-based configuration with GCP Secret Manager
 - **`docs/development_plan.md`**: Complete GCP deployment guide with cost optimization
 - **`docs/superlinked_config.md`**: Comprehensive config.yaml parameter reference
 - **`docs/redis_setup.md`**: Redis Stack setup, configuration, and management guide
@@ -372,31 +388,9 @@ Schema for fashion/clothing items with multi-modal image+text search:
 
 **Image Search Scripts:**
 
-Two approaches for image-based search ("find clothing matching this watch"):
+Approache for image-based search ("find clothing matching this watch"):
 
-1. **Helper Script (InMemoryExecutor)** - Development/Testing:
-   ```bash
-   python scripts/search_hm_clothing_with_image.py --image /tmp/watch.jpg --text "shirt" --limit 5
-   ```
-   - Direct PIL Image support (no encoding needed)
-   - Fast iteration for development
-   - Not suitable for production deployment
-
-2. **REST API Script** - Production:
-   ```bash
-   # Ingest items with base64-encoded images
-   python scripts/rest_api_image_search_example.py ingest \
-     --parquet data/processed_hm_clothing_1k.parquet --count 10
-
-   # Search with reference image
-   python scripts/rest_api_image_search_example.py search \
-     --image /tmp/watch.jpg --text "shirt" --limit 5
-   ```
-   - Uses base64 encoding for binary image data in JSON
-   - Production-ready REST API approach
-   - Base64 increases payload by ~33% (120KB → 160KB)
-
-3. **Direct curl** - Quick testing:
+1. **Direct curl** - Quick testing:
    ```bash
    # Multi-modal image+text search (single command)
    curl -X POST http://localhost:8080/api/v1/search/hm_clothing_search \

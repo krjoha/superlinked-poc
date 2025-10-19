@@ -1,0 +1,76 @@
+# ============================================================================
+# Default Configuration (inherited by all environments)
+# ============================================================================
+[default]
+
+# Data loading settings
+pandas_chunksize = 10
+use_test_data = false
+
+# API settings
+server_port = 8080
+log_level = "INFO"
+
+# Vector database settings
+vector_db_type = "inmemory"
+
+# Redis settings (used when vector_db_type = "redis")
+redis_host = "localhost"
+redis_port = 6379
+redis_password = ""
+redis_username = "default"
+redis_db = 0
+redis_max_connections = 50
+redis_socket_timeout = 5
+redis_socket_connect_timeout = 5
+
+# API authentication (override in .secrets.toml or via environment variable)
+api_key = ""
+
+# ============================================================================
+# Development Environment
+# ============================================================================
+[development]
+
+# Use test datasets for faster iteration
+use_test_data = true
+
+# Redis for development (matching current setup)
+vector_db_type = "redis"
+
+# Debug logging
+log_level = "DEBUG"
+
+# Development API key (for local testing only)
+# Override in .secrets.toml with your actual dev key
+api_key = "dev_api_key_12345"
+
+# ============================================================================
+# Production Environment
+# ============================================================================
+[production]
+
+# Use full datasets
+use_test_data = false
+
+# Redis for production performance and persistence
+vector_db_type = "redis"
+
+# Production Redis settings
+# Note: redis_password is loaded from GCP Secret Manager via Dynaconf hook
+redis_host = "localhost"  # Override with actual Redis host (e.g., Cloud Memorystore IP)
+redis_port = 6379
+redis_db = 0
+redis_max_connections = 100
+redis_socket_timeout = 10
+redis_socket_connect_timeout = 10
+
+# Production logging
+log_level = "WARNING"
+
+# GCP Configuration
+# Set your GCP project ID here (required for production)
+gcp_project_id = ""  # e.g., "search-rec-api-prod"
+
+# API key is loaded from GCP Secret Manager (projects/{project_id}/secrets/api-key/versions/latest)
+# DO NOT set api_key here - it will be loaded via the GCP Secret Manager hook

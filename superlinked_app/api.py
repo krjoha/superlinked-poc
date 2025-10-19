@@ -1,30 +1,25 @@
-import os
 from superlinked import framework as sl
 from superlinked.framework.dsl.source.data_loader_source import DataFormat
 
-# Import grocery product schema, index, and query
-from superlinked_app.index import index, product_schema
-from superlinked_app.query import query
-
-# Import H&M clothing schema, index, and query
+from superlinked_app.amazon_index import index, amazon_grocery_schema
+from superlinked_app.amazon_query import query
 from superlinked_app.hm_index import hm_index, hm_clothing_schema
 from superlinked_app.hm_query import hm_query
-
-# Import vector database factory
 from superlinked_app.vector_db import get_vector_database
+from superlinked_app.config import settings
 
 # ============================================================================
 # GROCERY PRODUCT SOURCES AND QUERIES (Amazon ML Challenge Dataset)
 # ============================================================================
 
 # REST source for manual grocery product ingestion
-product_source: sl.RestSource = sl.RestSource(product_schema)
+product_source: sl.RestSource = sl.RestSource(amazon_grocery_schema)
 
 # DataLoader source for bulk grocery product ingestion from Parquet
-# Set USE_TEST_DATA=1 for 1k rows, otherwise loads full 75k dataset
+# Uses settings.use_test_data for 1k rows, otherwise loads full 75k dataset
 grocery_data_file = (
     "data/processed_amazon_grocery_1k.parquet"
-    if os.getenv("USE_TEST_DATA")
+    if settings.use_test_data
     else "data/processed_amazon_grocery.parquet"
 )
 grocery_loader_config = sl.DataLoaderConfig(
@@ -32,10 +27,10 @@ grocery_loader_config = sl.DataLoaderConfig(
     format=DataFormat.PARQUET,
     name="amazon_grocery_loader"
 )
-grocery_data_loader = sl.DataLoaderSource(product_schema, grocery_loader_config)
+grocery_data_loader = sl.DataLoaderSource(amazon_grocery_schema, grocery_loader_config)
 
 # REST query endpoint for grocery products
-product_query = sl.RestQuery(sl.RestDescriptor("product_search"), query)
+product_query = sl.RestQuery(sl.RestDescriptor("amazon_grocery_search"), query)
 
 # ============================================================================
 # H&M CLOTHING SOURCES AND QUERIES (H&M Fashion Dataset)
@@ -45,11 +40,11 @@ product_query = sl.RestQuery(sl.RestDescriptor("product_search"), query)
 hm_clothing_source: sl.RestSource = sl.RestSource(hm_clothing_schema)
 
 # DataLoader source for bulk H&M clothing ingestion from CSV
-# Set USE_TEST_DATA=1 for 1k rows, otherwise loads full ~20k dataset
+# Uses settings.use_test_data for 1k rows, otherwise loads full ~20k dataset
 # CSV supports chunked reading to avoid OOM with large image embeddings
 hm_data_file = (
     "data/processed_hm_clothing_1k.csv"
-    if os.getenv("USE_TEST_DATA")
+    if settings.use_test_data
     else "data/processed_hm_clothing.csv"
 )
 hm_loader_config = sl.DataLoaderConfig(
@@ -57,7 +52,7 @@ hm_loader_config = sl.DataLoaderConfig(
     format=DataFormat.CSV,
     name="hm_clothing_loader",
     pandas_read_kwargs={
-        "chunksize": 10  # Process 10 rows at a time to manage memory
+        "chunksize": settings.pandas_chunksize
     }
 )
 hm_data_loader = sl.DataLoaderSource(hm_clothing_schema, hm_loader_config)
